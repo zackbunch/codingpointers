@@ -23,7 +23,7 @@ Please [click here](https://github.com/zackbunch/codingpointers/blob/ansible/Med
 
 In this tutorial, we will set up SonarQube and PostgreSQL using Docker Compose. SonarQube is an open-source platform used to continuously inspect the code quality and security of your codebases. By using Docker Compose, we can easily define and run multi-container Docker applications.
 
-**Step 1: Create the Docker Compose File**
+### Step 1: Create the Docker Compose File
 
 First, create a directory for your project and navigate into it. Then, create a file named `docker-compose.yml` with the following content:
 
@@ -52,20 +52,23 @@ services:
       - 5432:5432
     container_name: sonarqube_db
 ```
-**Step 2: Start the services**
+
+### Step 2: Start the services
+
 Run the follwing command to start the SonarQube and PostgreSQL service:
 
 ```sh
 docker-compose up -d
 ```
+
 The -d flag runs the containers in detached mode, meaning they will run in the background.
 
-**Step 3: Access SonarQube**
+### Step 3: Access SonarQube
 
-Open your web browser and go to http://localhost:9000. You should see the SonarQube interface. The default login credentials are usually:
+Open your web browser and go to <http://localhost:9000>. You should see the SonarQube interface. The default login credentials are usually:
 
-	•	Username: admin
-	•	Password: admin
+ • Username: admin
+ • Password: admin
 After logging in for the first time, you will be prompted to change the default password. Follow the instructions to set a new password. This step is crucial for securing your SonarQube instance.
 
 ---
@@ -74,12 +77,12 @@ After logging in for the first time, you will be prompted to change the default 
 
 After setting up SonarQube and changing the default password, the next step is to generate a token. This token will be used to authenticate API requests to SonarQube, which is essential for automating tasks and integrating SonarQube with other tools.
 
-**Step 1: Log in to SonarQube** 
+### Step 1: Log in to SonarQube
 
 1. Open your web browser and go to `http://localhost:9000`.
 2. Log in with your new credentials.
 
-**Step 2: Generate a Token**
+### Step 2: Generate a Token
 
 1. Click on your profile picture in the top-right corner of the SonarQube interface and select **My Account**.
 2. Navigate to the **Security** tab.
@@ -91,20 +94,21 @@ After setting up SonarQube and changing the default password, the next step is t
 
 With SonarQube set up and a token generated, the next step is to create a pip package that interacts with the SonarQube API. This package will simplify the process of making API requests and will be used in the custom Ansible module.
 
-**Step 1: Create a New Python Package**
+### Step 1: Create a New Python Package
 
 ```sh
 mkdir sonarqube
 ```
 
-**Step 2: Create the necessary files for your package**
+### Step 2: Create the necessary files for your package
 
 - setup.py
 - README.md
-- sonarqube/__init__.py
+- sonarqube/**init**.py
 - sonarqube/core.py
 
 The structure of your package should look like this:
+
 ```sh
 sonarqube/
 ├── README.md
@@ -113,7 +117,9 @@ sonarqube/
     ├── __init__.py
     └── core.py
 ```
-**Step 3: Set up the Package**
+
+### Step 3: Set up the Package
+
 1. Edit the setup.py to include the following information:
 
 ```python
@@ -140,9 +146,11 @@ setup(
     python_requires='>=3.6',
 )
 ```
-**Step 2: Create core functionality:**
+
+### Step 2: Create core functionality
 
 1. Create a core.py class to include the following information:
+
 ```python
 from os import makedirs, path
 from typing import Any, Dict, List, Optional
