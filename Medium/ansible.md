@@ -15,7 +15,7 @@ In this tutorial, we will create a custom pip package to interact with SonarQube
 
 For this tutorial, we will be using SonarQube community edition using Docker. I have provided a Dockerfile located on my GitHub that we will use to quickly get the Docker Instance spun up. Feel free to star the repo for later use.
 
-Please [click here](https://github.com/zackbunch/codingpointers) to get the Dockerfile.
+Please [click here](https://github.com/zackbunch/codingpointers/blob/ansible/Medium/docker-compose.yml) to get the Dockerfile.
 
 ---
 
@@ -74,7 +74,7 @@ After logging in for the first time, you will be prompted to change the default 
 
 After setting up SonarQube and changing the default password, the next step is to generate a token. This token will be used to authenticate API requests to SonarQube, which is essential for automating tasks and integrating SonarQube with other tools.
 
-**Step 1: Log in to SonarQube**
+**Step 1: Log in to SonarQube** 
 
 1. Open your web browser and go to `http://localhost:9000`.
 2. Log in with your new credentials.
@@ -92,11 +92,187 @@ After setting up SonarQube and changing the default password, the next step is t
 With SonarQube set up and a token generated, the next step is to create a pip package that interacts with the SonarQube API. This package will simplify the process of making API requests and will be used in the custom Ansible module.
 
 **Step 1: Create a New Python Package**
+
 ```sh
 mkdir sonarqube
 ```
-**Step 2: Create the necessary files for your package**:
-•	setup.py
-•	README.md
-•	sonarqube_api/__init__.py
-•	sonarqube_api/sonarqube.py
+
+**Step 2: Create the necessary files for your package**
+
+- setup.py
+- README.md
+- sonarqube/__init__.py
+- sonarqube/core.py
+
+The structure of your package should look like this:
+```sh
+sonarqube/
+├── README.md
+├── setup.py
+└── sonarqube/
+    ├── __init__.py
+    └── core.py
+```
+**Step 3: Set up the Package**
+1. Edit the setup.py to include the following information:
+
+```python
+from setuptools import setup, find_packages
+
+setup(
+    name='sonarqube',
+    version='0.1',
+    author='Zack Bunch',
+    author_email='zackbunch96@gmail.com',
+    url='https://www.youtube.com/@codingpointers',
+    packages=find_packages(),
+    install_requires=[
+        'requests',
+    ],
+    description='A Python package to interact with the SonarQube API',
+    long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
+    classifiers=[
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+    ],
+    python_requires='>=3.6',
+)
+```
+**Step 2: Create core functionality:**
+
+1. Create a core.py class to include the following information:
+```python
+from os import makedirs, path
+from typing import Any, Dict, List, Optional
+
+import requests
+import urllib3
+
+class Core:
+    """
+    A class to interact with the Sonar API.
+
+    Attributes:
+        url (str): Base URL of the Sonar server.
+        token (str): Token for API access.
+        session (requests.Session): A Requests session for making HTTP calls.
+    """
+
+    def __init__(self, url: str, token: str, verify_ssl: bool = False):
+        """
+        Initialize the SonarCore instance.
+
+        Args:
+            url (str): Base URL of the Sonar server.
+            token (str): Token for API access.
+            verify_ssl (bool): Whether to verify SSL certificates.
+        """
+        self.url = url
+        self.session = requests.Session()
+        self.session.verify = verify_ssl
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        if token:
+            self.session.auth = (token, '')
+        else:
+            raise ValueError("Authentication credentials are not provided. Set the token parameter.")
+
+    def endpoint_url(self, endpoint: str) -> str:
+        """
+        Construct the full URL for a given API endpoint.
+
+        Args:
+            endpoint (str): The API endpoint to append to the base URL.
+
+        Returns:
+            str: The full URL for the API call.
+        """
+        return f"{self.url}{endpoint}"
+
+    def call(
+        self,
+        method: callable,
+        endpoint: str,
+        expected_status_codes: Optional[List[int]] = None,
+        **data: Dict[str, Any],
+    ) -> Any:
+        """
+        Make an HTTP call using the provided method, endpoint, and data.
+
+        Args:
+            method (callable): The HTTP method to use (e.g., session.get, session.post).
+            endpoint (str): The API endpoint to call.
+            expected_status_codes (list[int], optional): List of expected status codes. Defaults to None.
+            **data (dict): Optional data to pass in the request (as JSON or query params).
+
+        Returns:
+            Any: The JSON response from the API.
+
+        Raises:
+            Exception: If the HTTP request fails or the response status is an error.
+        """
+        url = self.endpoint_url(endpoint)
+        try:
+            if method in [
+                self.session.get,
+                self.session.post,
+                self.session.put,
+                self.session.delete,
+            ]:
+                response = method(url, **data)
+
+            if expected_status_codes and response.status_code not in expected_status_codes:
+                raise Exception(
+                    f"Unexpected status code: {response.status_code}, URL: {url}, Data: {data}"
+                )
+            response.raise_for_status()
+            try:
+                return response.json() if response.text else {}
+            except ValueError:
+                return response.text
+        except requests.HTTPError as e:
+            error_data = e.response.json() if e.response.text else {}
+            raise Exception(
+                f"HTTP error occurred: {str(e)}, URL: {url}, Data: {data}, Error Data: {error_data}"
+            )
+        except Exception as e:
+            raise Exception(f"An error occurred: {str(e)}, URL: {url}, Data: {data}")
+
+    def post(
+        self,
+        endpoint: str,
+        expected_status_codes: Optional[List[int]] = None,
+        **data: Dict[str, Any],
+    ) -> Any:
+        """Send POST requests."""
+        return self.call(self.session.post, endpoint, expected_status_codes, **data)
+
+    def get(
+        self,
+        endpoint: str,
+        expected_status_codes: Optional[List[int]] = None,
+        **data: Dict[str, Any],
+    ) -> Any:
+        """Send GET requests."""
+        return self.call(self.session.get, endpoint, expected_status_codes, **data)
+
+    def put(
+        self,
+        endpoint: str,
+        expected_status_codes: Optional[List[int]] = None,
+        **data: Dict[str, Any],
+    ) -> Any:
+        """Send PUT requests."""
+        return self.call(self.session.put, endpoint, expected_status_codes, **data)
+
+    def delete(
+        self,
+        endpoint: str,
+        expected_status_codes: Optional[List[int]] = None,
+        **data: Dict[str, Any],
+    ) -> Any:
+        """Send DELETE requests."""
+        return self.call(self.session.delete, endpoint, expected_status_codes, **data)
+```
