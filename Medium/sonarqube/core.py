@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 import requests
 import urllib3
 
+
 class Core:
     """
     A class to interact with the Sonar API.
@@ -29,9 +30,11 @@ class Core:
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         if token:
-            self.session.auth = (token, '')
+            self.session.auth = (token, "")
         else:
-            raise ValueError("Authentication credentials are not provided. Set the token parameter.")
+            raise ValueError(
+                "Authentication credentials are not provided. Set the token parameter."
+            )
 
     def endpoint_url(self, endpoint: str) -> str:
         """
@@ -77,7 +80,10 @@ class Core:
             ]:
                 response = method(url, **data)
 
-            if expected_status_codes and response.status_code not in expected_status_codes:
+            if (
+                expected_status_codes
+                and response.status_code not in expected_status_codes
+            ):
                 raise Exception(
                     f"Unexpected status code: {response.status_code}, URL: {url}, Data: {data}"
                 )
