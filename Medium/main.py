@@ -1,15 +1,16 @@
+import logging
 from pprint import pprint
 from sonarqube.group import Group
 from sonarqube.core import Core
 
-
 def main():
-    core = Core(url='http://localhost:9000', token='squ_dec9222692d39672f14a7e6c68de2170e91867d7')
+    logging.basicConfig(level=logging.DEBUG)
+    core = Core(url='http://localhost:9000', token='')
     group = Group(core=core)
-    res = group.create_group(name='zacktenant')
-    pprint(res)
-    
-    
+    try:
+        res = group.create_group(name='testgroup')
+    except Exception as e:
+        logging.error(f"Error: {str(e)}")
 
-main()
-
+if __name__ == "__main__":
+    main()

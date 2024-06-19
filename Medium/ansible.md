@@ -127,7 +127,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='sonarqube',
-    version='0.1',
+    version='0.0.1',
     author='Zack Bunch',
     author_email='zackbunch96@gmail.com',
     url='https://www.youtube.com/@codingpointers',
@@ -152,89 +152,31 @@ setup(
 1. Create a core.py class to include the following information:
 
 ```python
-from os import makedirs, path
+import requests
+import logging
 from typing import Any, Dict, List, Optional
 
-import requests
-import urllib3
+logger = logging.getLogger(__name__)
 
 class Core:
-    """
-    A class to interact with the Sonar API.
-
-    Attributes:
-        url (str): Base URL of the Sonar server.
-        token (str): Token for API access.
-        session (requests.Session): A Requests session for making HTTP calls.
-    """
-
-    def __init__(self, url: str, token: str, verify_ssl: bool = False):
-        """
-        Initialize the SonarCore instance.
-
-        Args:
-            url (str): Base URL of the Sonar server.
-            token (str): Token for API access.
-            verify_ssl (bool): Whether to verify SSL certificates.
-        """
+    def __init__(self, url: str, token: str):
         self.url = url
         self.session = requests.Session()
-        self.session.verify = verify_ssl
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-        if token:
-            self.session.auth = (token, '')
-        else:
-            raise ValueError("Authentication credentials are not provided. Set the token parameter.")
+        self.session.auth = (token, '')
 
     def endpoint_url(self, endpoint: str) -> str:
-        """
-        Construct the full URL for a given API endpoint.
-
-        Args:
-            endpoint (str): The API endpoint to append to the base URL.
-
-        Returns:
-            str: The full URL for the API call.
-        """
         return f"{self.url}{endpoint}"
 
-    def call(
-        self,
-        method: callable,
-        endpoint: str,
-        expected_status_codes: Optional[List[int]] = None,
-        **data: Dict[str, Any],
-    ) -> Any:
-        """
-        Make an HTTP call using the provided method, endpoint, and data.
-
-        Args:
-            method (callable): The HTTP method to use (e.g., session.get, session.post).
-            endpoint (str): The API endpoint to call.
-            expected_status_codes (list[int], optional): List of expected status codes. Defaults to None.
-            **data (dict): Optional data to pass in the request (as JSON or query params).
-
-        Returns:
-            Any: The JSON response from the API.
-
-        Raises:
-            Exception: If the HTTP request fails or the response status is an error.
-        """
+    def call(self, method: callable, endpoint: str, expected_status_codes: Optional[List[int]] = None, params: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None) -> Any:
         url = self.endpoint_url(endpoint)
+        logger.debug(f"Making request to {url} with params {params} and data {data}")
         try:
-            if method in [
-                self.session.get,
-                self.session.post,
-                self.session.put,
-                self.session.delete,
-            ]:
-                response = method(url, **data)
-
+            if method == self.session.get:
+                response = method(url, params=params)
+            else:
+                response = method(url, data=data)
             if expected_status_codes and response.status_code not in expected_status_codes:
-                raise Exception(
-                    f"Unexpected status code: {response.status_code}, URL: {url}, Data: {data}"
-                )
+                raise requests.HTTPError(f"Unexpected status code: {response.status_code}", response=response)
             response.raise_for_status()
             try:
                 return response.json() if response.text else {}
@@ -242,45 +184,18 @@ class Core:
                 return response.text
         except requests.HTTPError as e:
             error_data = e.response.json() if e.response.text else {}
-            raise Exception(
-                f"HTTP error occurred: {str(e)}, URL: {url}, Data: {data}, Error Data: {error_data}"
-            )
-        except Exception as e:
-            raise Exception(f"An error occurred: {str(e)}, URL: {url}, Data: {data}")
+            logger.error(f"HTTP error occurred: {str(e)}, URL: {url}, Data: {params or data}, Error Data: {error_data}")
+            raise Exception(f"HTTP error occurred: {str(e)}, URL: {url}, Data: {params or data}, Error Data: {error_data}")
 
-    def post(
-        self,
-        endpoint: str,
-        expected_status_codes: Optional[List[int]] = None,
-        **data: Dict[str, Any],
-    ) -> Any:
-        """Send POST requests."""
-        return self.call(self.session.post, endpoint, expected_status_codes, **data)
+    def post(self, endpoint: str, data: Dict[str, Any]) -> Any:
+        return self.call(self.session.post, endpoint, expected_status_codes=[200, 201], data=data)
 
-    def get(
-        self,
-        endpoint: str,
-        expected_status_codes: Optional[List[int]] = None,
-        **data: Dict[str, Any],
-    ) -> Any:
-        """Send GET requests."""
-        return self.call(self.session.get, endpoint, expected_status_codes, **data)
+    def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        return self.call(self.session.get, endpoint, expected_status_codes=[200], params=params)
 
-    def put(
-        self,
-        endpoint: str,
-        expected_status_codes: Optional[List[int]] = None,
-        **data: Dict[str, Any],
-    ) -> Any:
-        """Send PUT requests."""
-        return self.call(self.session.put, endpoint, expected_status_codes, **data)
+    def put(self, endpoint: str, data: Dict[str, Any]) -> Any:
+        return self.call(self.session.put, endpoint, expected_status_codes=[200], data=data)
 
-    def delete(
-        self,
-        endpoint: str,
-        expected_status_codes: Optional[List[int]] = None,
-        **data: Dict[str, Any],
-    ) -> Any:
-        """Send DELETE requests."""
-        return self.call(self.session.delete, endpoint, expected_status_codes, **data)
+    def delete(self, endpoint: str, data: Dict[str, Any]) -> Any:
+        return self.call(self.session.delete, endpoint, expected_status_codes=[204], data=data)
 ```
