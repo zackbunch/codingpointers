@@ -1,15 +1,16 @@
-from typing import Any, Optional, List, Dict
 import logging
+from typing import Any, Dict, List, Optional
 
 from sonarqube.core import Core
 from sonarqube.exceptions import (
-    InsufficientPrivilegesException,
-    GroupNotFoundException,
     GroupAlreadyExistsException,
-    UnexpectedResponseException
+    GroupNotFoundException,
+    InsufficientPrivilegesException,
+    UnexpectedResponseException,
 )
 
 logger = logging.getLogger(__name__)
+
 
 class Group:
     """
@@ -45,7 +46,9 @@ class Group:
             return response.get("groups", [])
         except Exception as e:
             if "403" in str(e):
-                raise InsufficientPrivilegesException("Insufficient privileges to perform this action. Please check the token permissions.")
+                raise InsufficientPrivilegesException(
+                    "Insufficient privileges to perform this action. Please check the token permissions."
+                )
             else:
                 raise UnexpectedResponseException(f"Unexpected response: {str(e)}")
 
@@ -73,7 +76,9 @@ class Group:
             return None  # Group not found, return None
         except Exception as e:
             if "403" in str(e):
-                raise InsufficientPrivilegesException("Insufficient privileges to perform this action. Please check the token permissions.")
+                raise InsufficientPrivilegesException(
+                    "Insufficient privileges to perform this action. Please check the token permissions."
+                )
             else:
                 raise UnexpectedResponseException(f"Unexpected response: {str(e)}")
 

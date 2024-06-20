@@ -1,0 +1,11 @@
+---
+- name: Manage SonarQube Groups
+  hosts: localhost
+  tasks:
+    - name: Ensure group is present
+      group:
+        name: "example_group"
+        description: "An example group for demonstration purposes"
+        state: "present"
+        url: "http://localhost:9000"
+        token: "squ_3a51ce4e2e1f8790eaca408e90d820297d05550a"

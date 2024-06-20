@@ -2,7 +2,7 @@
 
 Over the past three years, I have worked as a Site Reliability Engineer (SRE). My primary task has been to automate myself out of a job, which mainly focused on creating wrappers around APIs for the applications we use. However, our team is a mixed bag of engineers - some are developers, while others are more focused on infrastructure. This diversity means that writing Ansible playbooks and coding can sometimes be challenging.
 
-To address this, we have decided to eventually split our team to bridge the hiring gap, focusing on hiring individuals who don't necessarily need to know how to code but are expected to be proficient with Ansible. As a part of this transition, I have started converting our Python packages into custom Ansible modules. This approach simplifies the process for non-developers, making it easier for them to leverage the power of Ansible without needing deep programming knowledge.
+To address this, I have started converting our Python packages into custom Ansible modules. This approach simplifies the process for non-developers, making it easier for them to leverage the power of Ansible without needing deep programming knowledge.
 
 In this tutorial, we will create a custom pip package to interact with SonarQube, as well as a custom Ansible module that non-developers can use. Here's an overview of the steps we'll follow to achieve this:
 
@@ -199,3 +199,146 @@ class Core:
     def delete(self, endpoint: str, data: Dict[str, Any]) -> Any:
         return self.call(self.session.delete, endpoint, expected_status_codes=[204], data=data)
 ```
+
+### Step 3: Create group functionality
+
+Creating the Group class is a critical part of our solution as it encapsulates all the operations related to user groups in SonarQube. This class will include methods for creating, updating, deleting, and retrieving user groups. An important aspect of these methods is ensuring **idempotence**, meaning that repeated applications of these operations will yield the same result. This is crucial for the reliability and predictability of our Ansible module.
+
+Let’s break down the Group class into bite-sized pieces that are easy to understand.
+
+1. Create a new module called `group.py` under the sonarqube package
+
+We will begin by importing the necessary modules and set up logging. This helps in debugging and tracking the operations performed by the class.
+
+```python
+from typing import Any, Optional, List, Dict
+import logging
+
+from sonarqube.core import Core
+from sonarqube.exceptions import (
+    InsufficientPrivilegesException,
+    GroupNotFoundException,
+    GroupAlreadyExistsException,
+    UnexpectedResponseException
+)
+
+logger = logging.getLogger(__name__)
+```
+
+2. Class Definition and Initialization
+
+The Group class will hold an instance of the Core class to interact with the SonarQube API.
+By holding an instance of the Core class, the Group class can leverage its functionality without being tightly coupled to its implementation. This separation of concerns enhances modularity and makes the codebase easier to maintain and extend.
+
+```python
+class Group:
+    """
+    A class to interact with the SonarQube user groups API.
+
+    Attributes:
+        core (Core): An instance of the Core class to interact with the SonarQube API.
+    """
+
+    def __init__(self, core: Core):
+        """
+        Initialize the Group instance.
+
+        Args:
+            core (Core): An instance of the Core class to interact with the SonarQube API.
+        """
+        self.core = core
+```
+
+We will start by writing our first function to truly interact with SonarQube in a useful way. The function will create a group in SonarQube. To write this function in such a way that it follows the principle of idempotence, we must first check if the group already exists before attempting to create it. While we could combine all the logic into one function, we will create a helper function first that gets the group ID of a given group name. If the name does not exist, we can proceed with creating the new group.
+
+```python
+
+def get_group_id(self, name: str) -> Optional[str]:
+        """
+        Get the ID of a user group by name.
+
+        Args:
+            name (str): The name of the group to search for.
+
+        Returns:
+            Optional[str]: The ID of the group if found, None otherwise.
+
+        Raises:
+            InsufficientPrivilegesException: If the user does not have privileges to perform the action.
+            UnexpectedResponseException: If the API response is unexpected.
+        """
+        endpoint = "/api/user_groups/search"
+        try:
+            response = self.core.get(endpoint=endpoint, params={"q": name})
+            groups = response.get("groups", [])
+            for group in groups:
+                if group.get("name") == name:
+                    return group.get("id")
+            return None  # Group not found, return None
+        except Exception as e:
+            if "403" in str(e):
+                raise InsufficientPrivilegesException("Insufficient privileges to perform this action. Please check the token permissions.")
+            else:
+                raise UnexpectedResponseException(f"Unexpected response: {str(e)}")
+```
+
+Create a New Group
+
+Next, we will write the function to create a new group. This function will use the get_group_id helper function to check if the group already exists before attempting to create it. This ensures idempotence by preventing duplicate groups from being created.
+
+```python
+def create_group(self, name: str, description: Optional[str] = None) -> Any:
+    """
+    Create a new user group in SonarQube if it does not already exist.
+
+    Args:
+        name (str): The name of the group to create.
+        description (str, optional): The description for the new group.
+
+    Returns:
+        Any: The response from the SonarQube API.
+
+    Raises:
+        GroupAlreadyExistsException: If the group already exists.
+        UnexpectedResponseException: If the API response is unexpected.
+    """
+    group_id = self.get_group_id(name)
+    if group_id is not None:
+        raise GroupAlreadyExistsException(f"Group '{name}' already exists.")
+
+    endpoint = "/api/user_groups/create"
+    data = {"name": name}
+    if description:
+        data["description"] = description
+    logger.debug(f"Creating group with data: {data}")
+    try:
+        response = self.core.post(endpoint=endpoint, data=data)
+    except Exception as e:
+        if "already exists" in str(e):
+            raise GroupAlreadyExistsException(f"Group '{name}' already exists.")
+        else:
+            raise UnexpectedResponseException(f"Unexpected response: {str(e)}")
+    response["changed"] = True
+    return response
+```
+
+You may have noticed that we add a key of changed to the response and explicitly set it to True. We do this in anticipation of using it in the future Ansible Module we will create. By adding the key to the response, it indicates that the operation resulted in a change. In Ansible, this is useful for tracking whether the state of the system has been altered by a task, allowing Ansible to report on changes.
+
+
+### Step 6: Creating an Ansible Module
+To get started working on the Ansible module, we will need to install Ansible. It is available as a pip package and can be installed simply like this:
+
+```sh
+pip3 install ansible
+```
+
+Now that we have Ansible installed, we can begin by creating our module that utilizes our newly created SonarQube pip package. Let’s start by creating a new folder in the root of our project and name it ansible_modules. Inside this folder, we will create a new file and name it `group.py`.
+
+```sh
+mkdir ansible_modules
+touch ansible_modules/group.py
+```
+
+Inside `group.py`, we will write our Ansible module to manage SonarQube groups. Ansible modules are Python scripts that follow a specific structure and use the `AnsibleModule` helper to handle input and output.
+
+### Writing the Ansible Module

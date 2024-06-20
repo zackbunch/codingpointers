@@ -1,8 +1,10 @@
-import requests
 import logging
 from typing import Any, Dict, List, Optional
 
+import requests
+
 logger = logging.getLogger(__name__)
+
 
 class Core:
     """
@@ -23,7 +25,7 @@ class Core:
         """
         self.url = url
         self.session = requests.Session()
-        self.session.auth = (token, '')
+        self.session.auth = (token, "")
 
     def endpoint_url(self, endpoint: str) -> str:
         """
@@ -37,7 +39,14 @@ class Core:
         """
         return f"{self.url}{endpoint}"
 
-    def call(self, method: callable, endpoint: str, expected_status_codes: Optional[List[int]] = None, params: Optional[Dict[str, Any]] = None, data: Optional[Dict[str, Any]] = None) -> Any:
+    def call(
+        self,
+        method: callable,
+        endpoint: str,
+        expected_status_codes: Optional[List[int]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Any:
         """
         Make an HTTP call using the provided method, endpoint, and data.
 
@@ -61,8 +70,13 @@ class Core:
                 response = method(url, params=params)
             else:
                 response = method(url, data=data)
-            if expected_status_codes and response.status_code not in expected_status_codes:
-                raise requests.HTTPError(f"Unexpected status code: {response.status_code}", response=response)
+            if (
+                expected_status_codes
+                and response.status_code not in expected_status_codes
+            ):
+                raise requests.HTTPError(
+                    f"Unexpected status code: {response.status_code}", response=response
+                )
             response.raise_for_status()
             try:
                 return response.json() if response.text else {}
@@ -70,8 +84,12 @@ class Core:
                 return response.text
         except requests.HTTPError as e:
             error_data = e.response.json() if e.response.text else {}
-            logger.error(f"HTTP error occurred: {str(e)}, URL: {url}, Data: {params or data}, Error Data: {error_data}")
-            raise Exception(f"HTTP error occurred: {str(e)}, URL: {url}, Data: {params or data}, Error Data: {error_data}")
+            logger.error(
+                f"HTTP error occurred: {str(e)}, URL: {url}, Data: {params or data}, Error Data: {error_data}"
+            )
+            raise Exception(
+                f"HTTP error occurred: {str(e)}, URL: {url}, Data: {params or data}, Error Data: {error_data}"
+            )
 
     def post(self, endpoint: str, data: Dict[str, Any]) -> Any:
         """
@@ -84,7 +102,9 @@ class Core:
         Returns:
             Any: The JSON response from the API.
         """
-        return self.call(self.session.post, endpoint, expected_status_codes=[200, 201], data=data)
+        return self.call(
+            self.session.post, endpoint, expected_status_codes=[200, 201], data=data
+        )
 
     def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
         """
@@ -97,7 +117,9 @@ class Core:
         Returns:
             Any: The JSON response from the API.
         """
-        return self.call(self.session.get, endpoint, expected_status_codes=[200], params=params)
+        return self.call(
+            self.session.get, endpoint, expected_status_codes=[200], params=params
+        )
 
     def put(self, endpoint: str, data: Dict[str, Any]) -> Any:
         """
@@ -110,7 +132,9 @@ class Core:
         Returns:
             Any: The JSON response from the API.
         """
-        return self.call(self.session.put, endpoint, expected_status_codes=[200], data=data)
+        return self.call(
+            self.session.put, endpoint, expected_status_codes=[200], data=data
+        )
 
     def delete(self, endpoint: str, data: Dict[str, Any]) -> Any:
         """
