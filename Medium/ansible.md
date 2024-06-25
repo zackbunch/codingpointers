@@ -456,7 +456,7 @@ def run_module():
     )
 ```
 
-The meat and potatos of this code are inside `module_args`. This is where all possible arguments the module will accept need to be defined. These arguments are essential for specifying the details of the task you want the module to perform. Let’s break down each argument defined in `module_args`:
+The meat and potatos of this code are inside `module_args`. This is where all possible arguments the module will accept need to be defined. Let’s break down each argument defined in `module_args`:
 
 ### Module Arguments
 
