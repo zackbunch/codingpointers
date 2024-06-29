@@ -466,4 +466,9 @@ The meat and potatos of this code are inside `module_args`. This is where all po
 | `token`       | `str`  | Yes      | -       | The authentication token for accessing the SonarQube API. This is necessary for authenticating requests. It is marked as `no_log=True` to ensure that the token is not logged, protecting sensitive information. |
 | `name`        | `str`  | No       | -       | The name of the group. While optional, it is generally required for creating or deleting a group. |
 | `description` | `str`  | No       | `None`  | An optional description for the group. You can provide additional details about the group, but it is not necessary for the module to function. |
-| `state`       | `str`  | Yes      | -       | Specifies the desired state of the group. The state can be either `present` (to ensure the group exists) or `absent` (to ensure the group is deleted). Possible choices are `present` and `absent`. |
+| `state`       | `str`  | Yes      | -       | Specifies the desired state of the group. The state can be either `present` (to ensure the group exists) or `absent` (to ensure the group is deleted). Possible choices are `present` and `absent`.
+
+
+
+
+
